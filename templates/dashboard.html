@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% set page = 'dashboard' %}
+{% block page_title %}数据概览{% endblock %}
+
+{% block content %}
+<div id="dashboard-content">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 mb-6">
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">总案件数</p>
+                    <p id="stat-total" class="text-3xl font-bold text-gray-800 mt-2">0</p>
+                    <p class="text-success text-xs mt-1"><i class="fa fa-arrow-up"></i> 今日新增 <span id="stat-today">0</span> 件</p>
+                </div>
+                <div class="w-12 h-12 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <i class="fa fa-gavel text-primary text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">待处理案件</p>
+                    <p id="stat-pending" class="text-3xl font-bold text-gray-800 mt-2">0</p>
+                    <p class="text-warning text-xs mt-1"><i class="fa fa-clock-o"></i> 需要及时跟进</p>
+                </div>
+                <div class="w-12 h-12 bg-orange-50 rounded-lg flex items-center justify-center">
+                    <i class="fa fa-clock-o text-warning text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">高风险案件</p>
+                    <p id="stat-high-risk" class="text-3xl font-bold text-danger mt-2">0</p>
+                    <p class="text-danger text-xs mt-1"><i class="fa fa-exclamation-triangle"></i> 需立即处理</p>
+                </div>
+                <div class="w-12 h-12 bg-red-50 rounded-lg flex items-center justify-center">
+                    <i class="fa fa-exclamation-triangle text-danger text-xl"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-sm">维权成功率</p>
+                    <p id="stat-success-rate" class="text-3xl font-bold text-success mt-2">0%</p>
+                    <p class="text-info text-xs mt-1"><i class="fa fa-trophy"></i> 累计赔偿 <span id="stat-compensation">0</span> 元</p>
+                </div>
+                <div class="w-12 h-12 bg-green-50 rounded-lg flex items-center justify-center">
+                    <i class="fa fa-trophy text-success text-xl"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-800 mb-4 flex items-center">
+                <i class="fa fa-bolt text-primary mr-2"></i>快捷操作
+            </h3>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="startCrawl()" class="p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-primary/5 transition text-left">
+                    <i class="fa fa-spider text-primary text-xl mb-2"></i>
+                    <p class="font-medium text-gray-800">启动全网爬取</p>
+                    <p class="text-xs text-gray-500 mt-1">自动抓取各平台商品并检测侵权</p>
+                </button>
+                <button onclick="generateReport()" class="p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-primary/5 transition text-left">
+                    <i class="fa fa-bar-chart text-primary text-xl mb-2"></i>
+                    <p class="font-medium text-gray-800">生成周报</p>
+                    <p class="text-xs text-gray-500 mt-1">生成本周维权报告PDF和Excel</p>
+                </button>
+                <button onclick="window.location.href='/cases?status=confirmed'" class="p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-primary/5 transition text-left">
+                    <i class="fa fa-check-circle text-warning text-xl mb-2"></i>
+                    <p class="font-medium text-gray-800">待确认案件</p>
+                    <p class="text-xs text-gray-500 mt-1">处理已确认的侵权案件</p>
+                </button>
+                <button onclick="checkBatchLitigation()" class="p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-primary/5 transition text-left">
+                    <i class="fa fa-users text-danger text-xl mb-2"></i>
+                    <p class="font-medium text-gray-800">批量诉讼检查</p>
+                    <p class="text-xs text-gray-500 mt-1">检测重复侵权方并发起批量诉讼</p>
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <h3 class="font-semibold text-gray-800 mb-4 flex items-center">
+                <i class="fa fa-line-chart text-primary mr-2"></i>维权数据统计
+            </h3>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600">在库知识产权</span>
+                    <span id="stat-active-ips" class="font-semibold">0 件</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600">累计赔偿金额</span>
+                    <span id="stat-total-comp" class="font-semibold text-success">0 元</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600">累计维权成本</span>
+                    <span id="stat-total-cost" class="font-semibold text-warning">0 元</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-600">净收益</span>
+                    <span id="stat-net-profit" class="font-semibold text-primary">0 元</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-semibold text-gray-800 flex items-center">
+                <i class="fa fa-list-alt text-primary mr-2"></i>最近案件
+            </h3>
+            <a href="/cases" class="text-sm text-primary hover:text-primary/80">查看全部 <i class="fa fa-angle-right ml-1"></i></a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">案件编号</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">知识产权</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">侵权商品</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">相似度</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">风险等级</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">状态</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">创建时间</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="recent-cases">
+                    <tr><td colspan="8" class="text-center py-10 text-gray-400"><span class="loading"></span> 加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function loadDashboard() {
+        const res = await apiRequest('/system/dashboard');
+        if (res && res.data) {
+            const d = res.data;
+            document.getElementById('stat-total').textContent = d.total_cases;
+            document.getElementById('stat-today').textContent = d.new_cases_today;
+            document.getElementById('stat-pending').textContent = d.pending_cases;
+            document.getElementById('stat-high-risk').textContent = d.high_risk_cases;
+            document.getElementById('stat-success-rate').textContent = d.success_rate + '%';
+            document.getElementById('stat-compensation').textContent = d.total_compensation.toLocaleString();
+            document.getElementById('stat-active-ips').textContent = d.active_ips + ' 件';
+            document.getElementById('stat-total-comp').textContent = d.total_compensation.toLocaleString() + ' 元';
+            document.getElementById('stat-total-cost').textContent = d.total_cost.toLocaleString() + ' 元';
+            const net = d.total_compensation - d.total_cost;
+            document.getElementById('stat-net-profit').textContent = net.toLocaleString() + ' 元';
+        }
+    }
+
+    async function loadRecentCases() {
+        const res = await apiRequest('/cases?page_size=5');
+        const tbody = document.getElementById('recent-cases');
+
+        if (res && res.items && res.items.length > 0) {
+            tbody.innerHTML = res.items.map(c => `
+                <tr class="table-row border-b border-gray-100">
+                    <td class="py-3 px-4 text-sm font-mono text-primary">${c.case_number}</td>
+                    <td class="py-3 px-4 text-sm">${c.ip_info ? c.ip_info.name : '-'}</td>
+                    <td class="py-3 px-4 text-sm">${c.product_info ? c.product_info.title.substring(0, 30) + '...' : '-'}</td>
+                    <td class="py-3 px-4 text-sm">${(c.similarity_score * 100).toFixed(1)}%</td>
+                    <td class="py-3 px-4 text-sm">${getRiskBadge(c.risk_level)}</td>
+                    <td class="py-3 px-4 text-sm">${getStatusBadge(c.status)}</td>
+                    <td class="py-3 px-4 text-sm text-gray-500">${formatDate(c.created_at)}</td>
+                    <td class="py-3 px-4 text-sm">
+                        <a href="/cases/${c.id}" class="text-primary hover:text-primary/80">查看</a>
+                    </td>
+                </tr>
+            `).join('');
+        } else {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-10 text-gray-400">暂无案件数据</td></tr>';
+        }
+    }
+
+    async function generateReport() {
+        showConfirm('确定要生成本周维权报告吗？', async () => {
+            await apiRequest('/system/report/generate', { method: 'POST' });
+            showToast('报告生成任务已在后台启动', 'info');
+            setTimeout(() => {
+                showToast('报告生成中，请稍后到报告中心查看', 'success');
+            }, 2000);
+        });
+    }
+
+    async function checkBatchLitigation() {
+        const res = await apiRequest('/system/batch-litigation/check');
+        if (res && res.data) {
+            if (res.data.count > 0) {
+                showToast(`检测到 ${res.data.count} 个符合批量诉讼条件的侵权方`, 'warning');
+            } else {
+                showToast('暂未发现符合批量诉讼条件的侵权方', 'success');
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAuth();
+        await loadDashboard();
+        await loadRecentCases();
+    });
+</script>
+{% endblock %}

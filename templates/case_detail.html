@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% set page = 'cases' %}
+{% block page_title %}案件详情{% endblock %}
+
+{% block content %}
+<div id="case-detail" class="space-y-5">
+    <div class="text-center py-16">
+        <span class="loading"></span>
+        <p class="text-gray-400 mt-3">加载中...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const caseId = window.location.pathname.split('/').pop();
+
+    async function loadCaseDetail() {
+        const res = await apiRequest(`/cases/${caseId}`);
+        const container = document.getElementById('case-detail');
+
+        if (res && res.data && res.data.case) {
+            const c = res.data.case;
+            const logs = res.data.logs || [];
+            const evidence = res.data.evidence;
+
+            container.innerHTML = `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div class="flex items-start justify-between mb-5">
+                        <div>
+                            <div class="flex items-center space-x-3 mb-2">
+                                <h2 class="text-xl font-bold text-gray-800">${c.case_number}</h2>
+                                ${getRiskBadge(c.risk_level)}
+                                ${getStatusBadge(c.status)}
+                            </div>
+                            <p class="text-gray-500 text-sm">创建时间：${formatDate(c.created_at)}</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="generateEvidence()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition">
+                                <i class="fa fa-camera mr-1"></i>生成证据包
+                            </button>
+                            <button onclick="sendWarning()" class="px-4 py-2 bg-warning text-white rounded-lg text-sm hover:bg-warning/90 transition">
+                                <i class="fa fa-paper-plane mr-1"></i>发送警告函
+                            </button>
+                            <button onclick="createLitigation()" class="px-4 py-2 bg-danger text-white rounded-lg text-sm hover:bg-danger/90 transition">
+                                <i class="fa fa-gavel mr-1"></i>发起诉讼
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                                <i class="fa fa-copyright text-primary mr-2"></i>知识产权信息
+                            </h3>
+                            <div class="bg-gray-50 rounded-lg p-4 space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">类型</span>
+                                    <span class="text-gray-800">${res.data.ip ? res.data.ip.ip_type : '-'}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">知识产权号</span>
+                                    <span class="text-gray-800 font-mono">${res.data.ip ? res.data.ip.ip_number : '-'}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">名称</span>
+                                    <span class="text-gray-800">${res.data.ip ? res.data.ip.name : '-'}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">权利人</span>
+                                    <span class="text-gray-800">${res.data.ip ? res.data.ip.owner : '-'}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                                <i class="fa fa-shopping-bag text-primary mr-2"></i>侵权商品信息
+                            </h3>
+                            <div class="bg-gray-50 rounded-lg p-4 space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">平台</span>
+                                    <span class="text-gray-800">${res.data.product ? res.data.product.platform : '-'}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">商品标题</span>
+                                    <span class="text-gray-800 text-right max-w-[200px] truncate">${res.data.product ? res.data.product.title : '-'}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">店铺名称</span>
+                                    <span class="text-gray-800">${res.data.product ? res.data.product.seller_name : '-'}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">价格</span>
+                                    <span class="text-gray-800">${res.data.product ? (res.data.product.price || '-') : '-'} 元</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">销量</span>
+                                    <span class="text-gray-800">${res.data.product ? (res.data.product.sales_count || '-') : '-'}</span>
+                                </div>
+                                ${res.data.product && res.data.product.url ? `
+                                <div class="pt-2">
+                                    <a href="${res.data.product.url}" target="_blank" class="text-primary text-sm hover:underline">
+                                        <i class="fa fa-external-link mr-1"></i>查看原链接
+                                    </a>
+                                </div>` : ''}
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                                <i class="fa fa-user-secret text-primary mr-2"></i>侵权方信息
+                            </h3>
+                            <div class="bg-gray-50 rounded-lg p-4 space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">名称</span>
+                                    <span class="text-gray-800">${res.data.party ? res.data.party.name : '-'}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">店铺等级</span>
+                                    <span class="text-gray-800">${res.data.party ? (res.data.party.store_level || '-') : '-'}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">粉丝数</span>
+                                    <span class="text-gray-800">${res.data.party ? (res.data.party.followers_count || '-') : '-'}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">历史被投诉次数</span>
+                                    <span class="text-gray-800 ${res.data.party && res.data.party.complaint_count >= 3 ? 'text-danger font-bold' : ''}">${res.data.party ? res.data.party.complaint_count : 0} 次</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                                <i class="fa fa-percent text-primary mr-2"></i>相似度检测
+                            </h3>
+                            <div class="bg-gray-50 rounded-lg p-4 text-center">
+                                <div class="inline-flex items-center justify-center w-20 h-20 rounded-full border-4 ${c.similarity_score >= 0.9 ? 'border-danger' : c.similarity_score >= 0.8 ? 'border-warning' : 'border-success'} mb-2">
+                                    <span class="text-2xl font-bold ${c.similarity_score >= 0.9 ? 'text-danger' : c.similarity_score >= 0.8 ? 'text-warning' : 'text-success'}">${(c.similarity_score * 100).toFixed(1)}%</span>
+                                </div>
+                                <p class="text-sm text-gray-500">综合相似度</p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                                <i class="fa fa-line-chart text-primary mr-2"></i>案件进度
+                            </h3>
+                            <div class="bg-gray-50 rounded-lg p-4 space-y-2">
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">指派律师</span>
+                                    <span class="text-gray-800">${c.assigned_lawyer || '未指派'}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">首次响应期限</span>
+                                    <span class="text-gray-800">${c.first_response_due ? formatDate(c.first_response_due) : '-'}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">赔偿金额</span>
+                                    <span class="text-success font-medium">${c.compensation_amount ? c.compensation_amount.toLocaleString() + ' 元' : '-'}</span>
+                                </div>
+                                <div class="flex justify-between text-sm">
+                                    <span class="text-gray-500">维权成本</span>
+                                    <span class="text-warning font-medium">${c.cost_amount ? c.cost_amount.toLocaleString() + ' 元' : '-'}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="font-semibold text-gray-800 mb-3 flex items-center">
+                                <i class="fa fa-folder-open text-primary mr-2"></i>证据包
+                            </h3>
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                ${evidence ? `
+                                    <div class="text-sm space-y-2">
+                                        <p><i class="fa fa-check-circle text-success mr-2"></i>已生成证据包</p>
+                                        <p class="text-gray-500 text-xs">路径：${c.evidence_pack_path || '-'}</p>
+                                        <p class="text-gray-500 text-xs">包含 ${evidence.length} 个证据文件</p>
+                                    </div>
+                                ` : `
+                                    <div class="text-center py-4">
+                                        <i class="fa fa-folder-o text-gray-400 text-3xl mb-2"></i>
+                                        <p class="text-gray-500 text-sm">尚未生成证据包</p>
+                                        <button onclick="generateEvidence()" class="mt-2 text-primary text-sm hover:underline">立即生成</button>
+                                    </div>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <h3 class="font-semibold text-gray-800 mb-4 flex items-center">
+                        <i class="fa fa-history text-primary mr-2"></i>案件操作日志
+                    </h3>
+                    <div class="space-y-4">
+                        ${logs.length > 0 ? logs.map(log => `
+                            <div class="flex items-start space-x-3">
+                                <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                    <i class="fa fa-circle text-primary text-xs"></i>
+                                </div>
+                                <div class="flex-1 pb-4 border-b border-gray-100 last:border-0">
+                                    <div class="flex items-center justify-between">
+                                        <p class="text-sm font-medium text-gray-800">${log.operation_type}</p>
+                                        <span class="text-xs text-gray-400">${formatDate(log.created_at)}</span>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">操作人：${log.operator || '系统'}</p>
+                                    ${log.details ? `<pre class="text-xs text-gray-600 bg-gray-50 rounded p-2 mt-2 overflow-x-auto">${JSON.stringify(log.details, null, 2)}</pre>` : ''}
+                                    ${!log.success ? `<p class="text-xs text-danger mt-1"><i class="fa fa-exclamation-circle mr-1"></i>${log.error_message || '操作失败'}</p>` : ''}
+                                </div>
+                            </div>
+                        `).join('') : '<p class="text-gray-400 text-center py-8">暂无操作日志</p>'}
+                    </div>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-10 text-center">
+                    <i class="fa fa-exclamation-triangle text-gray-300 text-5xl mb-4"></i>
+                    <p class="text-gray-500">案件不存在或已被删除</p>
+                    <a href="/cases" class="inline-block mt-4 text-primary hover:underline">返回案件列表</a>
+                </div>
+            `;
+        }
+    }
+
+    async function generateEvidence() {
+        showConfirm('确定要生成证据包吗？这可能需要一些时间。', async () => {
+            await apiRequest(`/cases/${caseId}/generate-evidence`, { method: 'POST' });
+            showToast('证据包正在后台生成，请稍后刷新查看', 'info');
+        });
+    }
+
+    async function sendWarning() {
+        showConfirm('确定要向侵权方发送警告函吗？', async () => {
+            const res = await apiRequest(`/cases/${caseId}/send-warning`, { method: 'POST' });
+            if (res && res.success) {
+                showToast('警告函已成功发送');
+                loadCaseDetail();
+            } else {
+                showToast(res.message || '发送失败', 'error');
+            }
+        });
+    }
+
+    async function createLitigation() {
+        showConfirm('确定要生成诉讼文档并发起诉讼流程吗？', async () => {
+            const res = await apiRequest(`/cases/${caseId}/create-litigation`, { method: 'POST' });
+            if (res && res.success) {
+                showToast('诉讼文档已生成，案件已进入诉讼流程');
+                loadCaseDetail();
+            } else {
+                showToast(res.message || '生成失败', 'error');
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAuth();
+        await loadCaseDetail();
+    });
+</script>
+{% endblock %}

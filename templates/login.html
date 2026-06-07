@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% set is_login_page = true %}
+
+{% block login_content %}
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div class="w-full max-w-md">
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
+                    <i class="fa fa-shield text-primary text-3xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800">知识产权维权管理系统</h1>
+                <p class="text-gray-500 mt-2">企业级自动化侵权监测与维权平台</p>
+            </div>
+
+            <form id="login-form" class="space-y-5">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">用户名</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                            <i class="fa fa-user"></i>
+                        </span>
+                        <input type="text" id="username" name="username" value="admin"
+                            class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition"
+                            placeholder="请输入用户名">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">密码</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400">
+                            <i class="fa fa-lock"></i>
+                        </span>
+                        <input type="password" id="password" name="password" value="admin123"
+                            class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition"
+                            placeholder="请输入密码">
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-sm">
+                    <label class="flex items-center">
+                        <input type="checkbox" class="rounded border-gray-300 text-primary focus:ring-primary">
+                        <span class="ml-2 text-gray-600">记住我</span>
+                    </label>
+                    <a href="#" class="text-primary hover:text-primary/80">忘记密码？</a>
+                </div>
+
+                <button type="submit" id="login-btn"
+                    class="w-full bg-primary text-white py-3 rounded-lg font-medium hover:bg-primary/90 transition flex items-center justify-center">
+                    <span>登录系统</span>
+                </button>
+            </form>
+
+            <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+                <p class="text-xs text-blue-700">
+                    <i class="fa fa-info-circle mr-1"></i>
+                    测试账号：admin / admin123 （管理员）
+                </p>
+                <p class="text-xs text-blue-700 mt-1">
+                    <i class="fa fa-info-circle mr-1"></i>
+                    法务账号：legal / legal123
+                </p>
+            </div>
+        </div>
+
+        <p class="text-center text-gray-500 text-sm mt-6">
+            © 2024 知识产权维权管理系统 · 企业版
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const btn = document.getElementById('login-btn');
+
+        if (!username || !password) {
+            showToast('请输入用户名和密码', 'error');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading mr-2"></span>登录中...';
+
+        try {
+            const formData = new FormData();
+            formData.append('username', username);
+            formData.append('password', password);
+
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.access_token) {
+                localStorage.setItem('auth_token', data.access_token);
+                showToast('登录成功，正在跳转...', 'success');
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 500);
+            } else {
+                showToast(data.detail || '登录失败，请检查用户名和密码', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<span>登录系统</span>';
+            }
+        } catch (error) {
+            showToast('网络错误，请稍后重试', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<span>登录系统</span>';
+        }
+    });
+</script>
+{% endblock %}

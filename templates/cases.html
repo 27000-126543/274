@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% set page = 'cases' %}
+{% block page_title %}侵权案件管理{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-5">
+    <div class="p-5 border-b border-gray-100">
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <div>
+                <label class="text-sm text-gray-500 block mb-1">案件状态</label>
+                <select id="filter-status" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+                    <option value="">全部状态</option>
+                    <option value="suspected">疑似</option>
+                    <option value="confirmed">已确认</option>
+                    <option value="warning_sent">已发警告</option>
+                    <option value="warning_acknowledged">已回执</option>
+                    <option value="litigation_prepared">待起诉</option>
+                    <option value="litigation_in_progress">诉讼中</option>
+                    <option value="settled">已和解</option>
+                    <option value="won">胜诉</option>
+                    <option value="lost">败诉</option>
+                    <option value="closed">已关闭</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-gray-500 block mb-1">风险等级</label>
+                <select id="filter-risk" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+                    <option value="">全部等级</option>
+                    <option value="low">低风险</option>
+                    <option value="medium">中风险</option>
+                    <option value="high">高风险</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-sm text-gray-500 block mb-1">侵权方名称</label>
+                <input type="text" id="filter-party" placeholder="搜索侵权方"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+            </div>
+            <div>
+                <label class="text-sm text-gray-500 block mb-1">专利号/商标号</label>
+                <input type="text" id="filter-ip" placeholder="搜索知识产权"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+            </div>
+            <div>
+                <label class="text-sm text-gray-500 block mb-1">开始日期</label>
+                <input type="date" id="filter-start"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+            </div>
+            <div class="flex items-end space-x-2">
+                <button onclick="loadCases(1)" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition">
+                    <i class="fa fa-search mr-1"></i>查询
+                </button>
+                <button onclick="resetFilters()" class="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50 transition">
+                    <i class="fa fa-refresh mr-1"></i>重置
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="p-5">
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center space-x-3">
+                <span id="cases-count" class="text-sm text-gray-500">共 0 条记录</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="exportCases()" class="px-3 py-1.5 border border-gray-300 rounded text-sm hover:bg-gray-50 transition">
+                    <i class="fa fa-download mr-1"></i>导出Excel
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-gray-200 bg-gray-50">
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">案件编号</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">知识产权</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">侵权方</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">平台</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">相似度</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">风险等级</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">状态</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">创建时间</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="cases-table">
+                    <tr><td colspan="9" class="text-center py-16 text-gray-400"><span class="loading"></span> 加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="pagination" class="flex items-center justify-between mt-6">
+            <div class="text-sm text-gray-500">每页显示
+                <select id="page-size" onchange="loadCases(1)" class="mx-1 border rounded px-2 py-1">
+                    <option value="10">10</option>
+                    <option value="20" selected>20</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                </select>
+                条
+            </div>
+            <div id="page-buttons" class="flex items-center space-x-1">
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPage = 1;
+    let totalPages = 1;
+
+    function getFilters() {
+        return {
+            status: document.getElementById('filter-status').value,
+            risk_level: document.getElementById('filter-risk').value,
+            infringing_party: document.getElementById('filter-party').value,
+            ip_number: document.getElementById('filter-ip').value,
+            start_date: document.getElementById('filter-start').value,
+            page_size: document.getElementById('page-size').value
+        };
+    }
+
+    function resetFilters() {
+        document.getElementById('filter-status').value = '';
+        document.getElementById('filter-risk').value = '';
+        document.getElementById('filter-party').value = '';
+        document.getElementById('filter-ip').value = '';
+        document.getElementById('filter-start').value = '';
+        loadCases(1);
+    }
+
+    async function loadCases(page = 1) {
+        currentPage = page;
+        const filters = getFilters();
+        let url = `/cases?page=${page}&page_size=${filters.page_size}`;
+        if (filters.status) url += `&status=${filters.status}`;
+        if (filters.risk_level) url += `&risk_level=${filters.risk_level}`;
+        if (filters.infringing_party) url += `&infringing_party=${encodeURIComponent(filters.infringing_party)}`;
+        if (filters.ip_number) url += `&ip_number=${encodeURIComponent(filters.ip_number)}`;
+        if (filters.start_date) url += `&start_date=${filters.start_date}`;
+
+        const res = await apiRequest(url);
+        const tbody = document.getElementById('cases-table');
+
+        if (res && res.items) {
+            document.getElementById('cases-count').textContent = `共 ${res.total} 条记录`;
+            totalPages = Math.ceil(res.total / res.page_size);
+
+            if (res.items.length > 0) {
+                tbody.innerHTML = res.items.map(c => `
+                    <tr class="table-row border-b border-gray-100">
+                        <td class="py-3 px-4 text-sm font-mono text-primary">${c.case_number}</td>
+                        <td class="py-3 px-4 text-sm">
+                            <div>${c.ip_info ? c.ip_info.name : '-'}</div>
+                            <div class="text-xs text-gray-400">${c.ip_info ? c.ip_info.ip_number : ''}</div>
+                        </td>
+                        <td class="py-3 px-4 text-sm">${c.party_info ? c.party_info.name : '-'}</td>
+                        <td class="py-3 px-4 text-sm">${c.product_info ? c.product_info.platform : '-'}</td>
+                        <td class="py-3 px-4 text-sm font-medium ${c.similarity_score >= 0.9 ? 'text-danger' : c.similarity_score >= 0.8 ? 'text-warning' : 'text-gray-600'}">${(c.similarity_score * 100).toFixed(1)}%</td>
+                        <td class="py-3 px-4 text-sm">${getRiskBadge(c.risk_level)}</td>
+                        <td class="py-3 px-4 text-sm">${getStatusBadge(c.status)}</td>
+                        <td class="py-3 px-4 text-sm text-gray-500">${formatDate(c.created_at)}</td>
+                        <td class="py-3 px-4 text-sm space-x-2">
+                            <a href="/cases/${c.id}" class="text-primary hover:text-primary/80">详情</a>
+                            <span class="text-gray-300">|</span>
+                            <a href="javascript:void(0)" onclick="updateCaseStatus(${c.id})" class="text-primary hover:text-primary/80">更新状态</a>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center py-16 text-gray-400">暂无案件数据</td></tr>';
+            }
+
+            renderPagination();
+        }
+    }
+
+    function renderPagination() {
+        const container = document.getElementById('page-buttons');
+        let html = '';
+
+        html += `<button onclick="loadCases(${Math.max(1, currentPage - 1)})" class="px-3 py-1 border rounded text-sm ${currentPage <= 1 ? 'text-gray-400 cursor-not-allowed' : 'hover:bg-gray-50'}" ${currentPage <= 1 ? 'disabled' : ''}>上一页</button>`;
+
+        const startPage = Math.max(1, currentPage - 2);
+        const endPage = Math.min(totalPages, currentPage + 2);
+
+        for (let i = startPage; i <= endPage; i++) {
+            html += `<button onclick="loadCases(${i})" class="px-3 py-1 border rounded text-sm ${i === currentPage ? 'bg-primary text-white border-primary' : 'hover:bg-gray-50'}">${i}</button>`;
+        }
+
+        html += `<button onclick="loadCases(${Math.min(totalPages, currentPage + 1)})" class="px-3 py-1 border rounded text-sm ${currentPage >= totalPages ? 'text-gray-400 cursor-not-allowed' : 'hover:bg-gray-50'}" ${currentPage >= totalPages ? 'disabled' : ''}>下一页</button>`;
+
+        container.innerHTML = html;
+    }
+
+    async function exportCases() {
+        const filters = getFilters();
+        let url = `/cases/export/download?`;
+        if (filters.status) url += `status=${filters.status}&`;
+        if (filters.risk_level) url += `risk_level=${filters.risk_level}&`;
+        if (filters.start_date) url += `start_date=${filters.start_date}`;
+
+        const token = localStorage.getItem('auth_token');
+        window.open(`${API_BASE}${url}`, '_blank');
+    }
+
+    function updateCaseStatus(caseId) {
+        const newStatus = prompt('请输入新的状态 (suspected/confirmed/warning_sent/warning_acknowledged/litigation_prepared/litigation_in_progress/settled/won/lost/closed):');
+        if (newStatus) {
+            apiRequest(`/cases/${caseId}/status`, {
+                method: 'PATCH',
+                body: JSON.stringify({ status: newStatus })
+            }).then(res => {
+                if (res && res.success) {
+                    showToast('状态更新成功');
+                    loadCases(currentPage);
+                } else {
+                    showToast(res.message || '更新失败', 'error');
+                }
+            });
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAuth();
+        await loadCases(1);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% set page = 'logs' %}
+{% block page_title %}操作日志{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100">
+    <div class="p-5 border-b border-gray-100">
+        <div class="flex items-center space-x-3">
+            <select id="filter-type" onchange="loadLogs(1)" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+                <option value="">全部操作类型</option>
+                <option value="crawl">数据爬取</option>
+                <option value="compare">相似度比对</option>
+                <option value="mark_infringement">标记侵权</option>
+                <option value="generate_evidence">生成证据</option>
+                <option value="send_warning">发送警告</option>
+                <option value="create_litigation">创建诉讼</option>
+                <option value="update_status">状态更新</option>
+                <option value="generate_report">生成报告</option>
+                <option value="export_data">数据导出</option>
+            </select>
+            <input type="text" id="filter-operator" placeholder="操作人"
+                class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary w-40">
+            <input type="date" id="filter-start" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+            <span class="text-gray-400">至</span>
+            <input type="date" id="filter-end" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+            <button onclick="loadLogs(1)" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition">
+                <i class="fa fa-search mr-1"></i>查询
+            </button>
+        </div>
+    </div>
+
+    <div class="p-5">
+        <span id="logs-count" class="text-sm text-gray-500 mb-4 block">共 0 条记录</span>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-gray-200 bg-gray-50">
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500 w-16">状态</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">操作类型</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">操作人</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">目标类型</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">目标ID</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">操作详情</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">时间</th>
+                    </tr>
+                </thead>
+                <tbody id="logs-table">
+                    <tr><td colspan="7" class="text-center py-16 text-gray-400"><span class="loading"></span> 加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="pagination" class="flex items-center justify-end mt-6 space-x-1">
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPage = 1;
+    let totalPages = 1;
+
+    const typeNameMap = {
+        crawl: '数据爬取', compare: '相似度比对', mark_infringement: '标记侵权',
+        generate_evidence: '生成证据', send_warning: '发送警告',
+        create_litigation: '创建诉讼', assign_lawyer: '指派律师',
+        escalate: '升级处理', update_status: '状态更新',
+        manual_entry: '手动录入', merge_clue: '合并线索',
+        generate_report: '生成报告', export_data: '数据导出'
+    };
+
+    async function loadLogs(page = 1) {
+        currentPage = page;
+        const opType = document.getElementById('filter-type').value;
+        const operator = document.getElementById('filter-operator').value;
+        const start = document.getElementById('filter-start').value;
+        const end = document.getElementById('filter-end').value;
+        const pageSize = 30;
+
+        let url = `/system/logs?page=${page}&page_size=${pageSize}`;
+        if (opType) url += `&operation_type=${opType}`;
+        if (operator) url += `&operator=${encodeURIComponent(operator)}`;
+        if (start) url += `&start_date=${start}`;
+        if (end) url += `&end_date=${end}`;
+
+        const res = await apiRequest(url);
+        const tbody = document.getElementById('logs-table');
+
+        if (res && res.items) {
+            document.getElementById('logs-count').textContent = `共 ${res.total} 条记录`;
+            totalPages = Math.ceil(res.total / pageSize);
+
+            if (res.items.length > 0) {
+                tbody.innerHTML = res.items.map(log => `
+                    <tr class="table-row border-b border-gray-100">
+                        <td class="py-3 px-4">
+                            ${log.success ?
+                                '<i class="fa fa-check-circle text-success" title="成功"></i>' :
+                                '<i class="fa fa-times-circle text-danger" title="失败"></i>'}
+                        </td>
+                        <td class="py-3 px-4 text-sm">${typeNameMap[log.operation_type] || log.operation_type}</td>
+                        <td class="py-3 px-4 text-sm">${log.operator || '系统'}</td>
+                        <td class="py-3 px-4 text-sm text-gray-500">${log.target_type || '-'}</td>
+                        <td class="py-3 px-4 text-sm text-gray-500">${log.target_id || '-'}</td>
+                        <td class="py-3 px-4 text-sm">
+                            ${log.error_message ?
+                                `<span class="text-danger text-xs">${log.error_message.substring(0, 50)}</span>` :
+                                (log.details ?
+                                    `<button onclick='showDetail(${JSON.stringify(log.details).replace(/'/g, "&#39;")})' class="text-primary text-xs hover:underline">查看详情</button>` :
+                                    '-')}
+                        </td>
+                        <td class="py-3 px-4 text-sm text-gray-500 whitespace-nowrap">${formatDate(log.created_at)}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-16 text-gray-400">暂无日志数据</td></tr>';
+            }
+            renderPagination();
+        }
+    }
+
+    function showDetail(details) {
+        alert(JSON.stringify(details, null, 2));
+    }
+
+    function renderPagination() {
+        const container = document.getElementById('pagination');
+        let html = '';
+        html += `<button onclick="loadLogs(${Math.max(1, currentPage - 1)})" class="px-3 py-1 border rounded text-sm ${currentPage <= 1 ? 'text-gray-400 cursor-not-allowed' : 'hover:bg-gray-50'}" ${currentPage <= 1 ? 'disabled' : ''}>上一页</button>`;
+        for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+            html += `<button onclick="loadLogs(${i})" class="px-3 py-1 border rounded text-sm ${i === currentPage ? 'bg-primary text-white border-primary' : 'hover:bg-gray-50'}">${i}</button>`;
+        }
+        html += `<button onclick="loadLogs(${Math.min(totalPages, currentPage + 1)})" class="px-3 py-1 border rounded text-sm ${currentPage >= totalPages ? 'text-gray-400 cursor-not-allowed' : 'hover:bg-gray-50'}" ${currentPage >= totalPages ? 'disabled' : ''}>下一页</button>`;
+        container.innerHTML = html;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAuth();
+        await loadLogs(1);
+    });
+</script>
+{% endblock %}

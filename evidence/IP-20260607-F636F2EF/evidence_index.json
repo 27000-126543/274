@@ -1,0 +1,23 @@
+[
+  {
+    "name": "product_image_0",
+    "file_name": "product_image_0.jpg",
+    "description": "商品图片1",
+    "file_size": 20437,
+    "md5": "330b3b8f110e963c4382d2dd3de57a40"
+  },
+  {
+    "name": "ip_image_0",
+    "file_name": "ip_image_0.jpg",
+    "description": "知识产权图片1",
+    "file_size": 9998,
+    "md5": "59667d95b33988abd52ea9498578f127"
+  },
+  {
+    "name": "metadata",
+    "file_name": "metadata.json",
+    "description": "元数据文件",
+    "file_size": 675,
+    "md5": "986337ea2f624570f7ecbf2ce96f08d3"
+  }
+]

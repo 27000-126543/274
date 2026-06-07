@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% set page = 'clues' %}
+{% block page_title %}线下线索管理{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100">
+    <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <select id="filter-status" onchange="loadClues(1)" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+                <option value="">全部状态</option>
+                <option value="pending">待处理</option>
+                <option value="processing">处理中</option>
+                <option value="merged">已合并</option>
+                <option value="closed">已关闭</option>
+            </select>
+            <select id="filter-dup" onchange="loadClues(1)" class="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+                <option value="">是否重复</option>
+                <option value="true">重复线索</option>
+                <option value="false">新线索</option>
+            </select>
+        </div>
+        <button onclick="showAddModal()" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition">
+            <i class="fa fa-plus mr-1"></i>录入线下线索
+        </button>
+    </div>
+
+    <div class="p-5">
+        <span id="clues-count" class="text-sm text-gray-500 mb-4 block">共 0 条记录</span>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-gray-200 bg-gray-50">
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">线索编号</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">侵权方名称</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">侵权内容</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">发现地点</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">是否重复</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">举报人</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">录入时间</th>
+                    </tr>
+                </thead>
+                <tbody id="clues-table">
+                    <tr><td colspan="7" class="text-center py-16 text-gray-400"><span class="loading"></span> 加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="pagination" class="flex items-center justify-end mt-6 space-x-1">
+        </div>
+    </div>
+</div>
+
+<!-- 添加弹窗 -->
+<div id="add-modal" class="fixed inset-0 z-50 hidden">
+    <div class="modal-backdrop absolute inset-0" onclick="closeAddModal()"></div>
+    <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white rounded-lg shadow-xl p-6 w-[500px]">
+        <h3 class="text-lg font-semibold mb-5">录入线下线索</h3>
+        <form id="add-form" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">侵权方名称 *</label>
+                <input type="text" id="form-name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">侵权内容描述 *</label>
+                <textarea id="form-content" rows="3" required class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary"></textarea>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">发现地点</label>
+                    <input type="text" id="form-location" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">发现日期</label>
+                    <input type="date" id="form-date" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">举报人</label>
+                    <input type="text" id="form-reporter" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">联系方式</label>
+                    <input type="text" id="form-contact" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-primary">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-3 pt-4">
+                <button type="button" onclick="closeAddModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-50 transition">取消</button>
+                <button type="submit" class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition">提交</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPage = 1;
+    let totalPages = 1;
+
+    function showAddModal() { document.getElementById('add-modal').classList.remove('hidden'); }
+    function closeAddModal() { document.getElementById('add-modal').classList.add('hidden'); }
+
+    async function loadClues(page = 1) {
+        currentPage = page;
+        const status = document.getElementById('filter-status').value;
+        const dup = document.getElementById('filter-dup').value;
+        const pageSize = 20;
+
+        let url = `/system/offline-clues?page=${page}&page_size=${pageSize}`;
+        if (status) url += `&status=${status}`;
+        if (dup) url += `&is_duplicate=${dup}`;
+
+        const res = await apiRequest(url);
+        const tbody = document.getElementById('clues-table');
+
+        if (res && res.items) {
+            document.getElementById('clues-count').textContent = `共 ${res.total} 条记录`;
+            totalPages = Math.ceil(res.total / pageSize);
+
+            if (res.items.length > 0) {
+                tbody.innerHTML = res.items.map(c => `
+                    <tr class="table-row border-b border-gray-100">
+                        <td class="py-3 px-4 text-sm font-mono text-primary">${c.clue_number}</td>
+                        <td class="py-3 px-4 text-sm">${c.infringing_party_name}</td>
+                        <td class="py-3 px-4 text-sm max-w-xs truncate">${c.infringing_content}</td>
+                        <td class="py-3 px-4 text-sm text-gray-500">${c.infringing_location || '-'}</td>
+                        <td class="py-3 px-4 text-sm">
+                            ${c.is_duplicate ?
+                                '<span class="badge badge-warning">重复</span>' :
+                                '<span class="badge badge-success">新线索</span>'}
+                        </td>
+                        <td class="py-3 px-4 text-sm">${c.reporter || '-'}</td>
+                        <td class="py-3 px-4 text-sm text-gray-500">${formatDate(c.created_at)}</td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-16 text-gray-400">暂无线索数据</td></tr>';
+            }
+            renderPagination();
+        }
+    }
+
+    function renderPagination() {
+        const container = document.getElementById('pagination');
+        let html = '';
+        html += `<button onclick="loadClues(${Math.max(1, currentPage - 1)})" class="px-3 py-1 border rounded text-sm ${currentPage <= 1 ? 'text-gray-400 cursor-not-allowed' : 'hover:bg-gray-50'}" ${currentPage <= 1 ? 'disabled' : ''}>上一页</button>`;
+        for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+            html += `<button onclick="loadClues(${i})" class="px-3 py-1 border rounded text-sm ${i === currentPage ? 'bg-primary text-white border-primary' : 'hover:bg-gray-50'}">${i}</button>`;
+        }
+        html += `<button onclick="loadClues(${Math.min(totalPages, currentPage + 1)})" class="px-3 py-1 border rounded text-sm ${currentPage >= totalPages ? 'text-gray-400 cursor-not-allowed' : 'hover:bg-gray-50'}" ${currentPage >= totalPages ? 'disabled' : ''}>下一页</button>`;
+        container.innerHTML = html;
+    }
+
+    document.getElementById('add-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = {
+            infringing_party_name: document.getElementById('form-name').value,
+            infringing_content: document.getElementById('form-content').value,
+            infringing_location: document.getElementById('form-location').value || undefined,
+            discovery_date: document.getElementById('form-date').value || undefined,
+            reporter: document.getElementById('form-reporter').value || undefined,
+            contact_info: document.getElementById('form-contact').value || undefined
+        };
+        const res = await apiRequest('/system/offline-clues', { method: 'POST', body: JSON.stringify(data) });
+        if (res && res.success) {
+            showToast(res.data.is_duplicate ? '线索已提交，检测到为重复线索，已自动合并' : '线索提交成功');
+            closeAddModal();
+            loadClues(1);
+        } else {
+            showToast(res.message || '提交失败', 'error');
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAuth();
+        await loadClues(1);
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,24 @@
+{
+  "case_number": "IP-20260607-F636F2EF",
+  "generated_at": "2026-06-07T15:34:13.815140",
+  "ip_info": {
+    "ip_type": "patent",
+    "ip_number": "ZL202310123456.7",
+    "name": "智能穿戴设备及其控制方法",
+    "owner": "示例科技有限公司"
+  },
+  "product_info": {
+    "platform": "pdd",
+    "product_id": "prod_39e393db",
+    "title": "热销智能家居产品",
+    "price": 978.76,
+    "seller_name": "未来科技专卖店",
+    "product_url": "https://item.example.com/127752",
+    "crawl_time": "2026-06-07T07:33:50"
+  },
+  "similarity": {
+    "score": 0.88,
+    "threshold": 0.8
+  },
+  "company": "示例科技有限公司"
+}

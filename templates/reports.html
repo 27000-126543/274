@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% set page = 'reports' %}
+{% block page_title %}报告中心{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-xl shadow-sm border border-gray-100">
+    <div class="p-5 border-b border-gray-100 flex items-center justify-between">
+        <div>
+            <h3 class="font-semibold text-gray-800">维权周报</h3>
+            <p class="text-sm text-gray-500 mt-1">每周一自动生成，包含案件统计、成功率、趋势图表</p>
+        </div>
+        <button onclick="generateReport()" class="px-4 py-2 bg-primary text-white rounded-lg text-sm hover:bg-primary/90 transition">
+            <i class="fa fa-plus mr-1"></i>生成周报
+        </button>
+    </div>
+
+    <div class="p-5">
+        <span id="reports-count" class="text-sm text-gray-500 mb-4 block">共 0 份报告</span>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-gray-200 bg-gray-50">
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">报告周次</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">统计区间</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">新增案件</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">结案数</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">成功率</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">累计赔偿</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">生成时间</th>
+                        <th class="text-left py-3 px-4 text-sm font-medium text-gray-500">下载</th>
+                    </tr>
+                </thead>
+                <tbody id="reports-table">
+                    <tr><td colspan="8" class="text-center py-16 text-gray-400"><span class="loading"></span> 加载中...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="pagination" class="flex items-center justify-end mt-6 space-x-1">
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPage = 1;
+    let totalPages = 1;
+
+    async function loadReports(page = 1) {
+        currentPage = page;
+        const pageSize = 20;
+        const res = await apiRequest(`/system/reports?page=${page}&page_size=${pageSize}`);
+        const tbody = document.getElementById('reports-table');
+
+        if (res && res.items) {
+            document.getElementById('reports-count').textContent = `共 ${res.total} 份报告`;
+            totalPages = Math.ceil(res.total / pageSize);
+
+            if (res.items.length > 0) {
+                tbody.innerHTML = res.items.map(r => `
+                    <tr class="table-row border-b border-gray-100">
+                        <td class="py-3 px-4 text-sm font-medium">${r.report_week}</td>
+                        <td class="py-3 px-4 text-sm text-gray-500">${r.start_date} ~ ${r.end_date}</td>
+                        <td class="py-3 px-4 text-sm">${r.new_cases}</td>
+                        <td class="py-3 px-4 text-sm">${r.closed_cases}</td>
+                        <td class="py-3 px-4 text-sm">
+                            <span class="${r.success_rate >= 70 ? 'text-success' : r.success_rate >= 50 ? 'text-warning' : 'text-danger'} font-medium">${r.success_rate}%</span>
+                        </td>
+                        <td class="py-3 px-4 text-sm text-success font-medium">${r.total_compensation.toLocaleString()} 元</td>
+                        <td class="py-3 px-4 text-sm text-gray-500">${formatDate(r.created_at)}</td>
+                        <td class="py-3 px-4 text-sm space-x-2">
+                            ${r.pdf_path ? `<a href="#" class="text-primary hover:text-primary/80"><i class="fa fa-file-pdf-o mr-1"></i>PDF</a>` : ''}
+                            ${r.excel_path ? `<a href="#" class="text-primary hover:text-primary/80"><i class="fa fa-file-excel-o mr-1"></i>Excel</a>` : ''}
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-16 text-gray-400">暂无报告，点击上方按钮生成</td></tr>';
+            }
+            renderPagination();
+        }
+    }
+
+    function renderPagination() {
+        const container = document.getElementById('pagination');
+        let html = '';
+        html += `<button onclick="loadReports(${Math.max(1, currentPage - 1)})" class="px-3 py-1 border rounded text-sm ${currentPage <= 1 ? 'text-gray-400 cursor-not-allowed' : 'hover:bg-gray-50'}" ${currentPage <= 1 ? 'disabled' : ''}>上一页</button>`;
+        for (let i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+            html += `<button onclick="loadReports(${i})" class="px-3 py-1 border rounded text-sm ${i === currentPage ? 'bg-primary text-white border-primary' : 'hover:bg-gray-50'}">${i}</button>`;
+        }
+        html += `<button onclick="loadReports(${Math.min(totalPages, currentPage + 1)})" class="px-3 py-1 border rounded text-sm ${currentPage >= totalPages ? 'text-gray-400 cursor-not-allowed' : 'hover:bg-gray-50'}" ${currentPage >= totalPages ? 'disabled' : ''}>下一页</button>`;
+        container.innerHTML = html;
+    }
+
+    async function generateReport() {
+        showConfirm('确定要生成本周维权报告吗？', async () => {
+            await apiRequest('/system/report/generate', { method: 'POST' });
+            showToast('报告生成任务已在后台启动，请稍后刷新查看', 'info');
+            setTimeout(() => loadReports(currentPage), 3000);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        await checkAuth();
+        await loadReports(1);
+    });
+</script>
+{% endblock %}
